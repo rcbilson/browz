@@ -2,16 +2,68 @@ class FileList {
   constructor(container, onNavigate) {
     this.container = container;
     this.onNavigate = onNavigate;
+    this.selectedItem = null;
+    this.currentPath = '';
+
+    // Click outside to deselect
+    document.addEventListener('click', (e) => {
+      if (!this.container.contains(e.target)) {
+        this.deselectAll();
+      }
+    });
   }
 
   async load(path = '') {
+    this.currentPath = path;
     const response = await fetch(`/api/files/list?path=${encodeURIComponent(path)}`);
     const data = await response.json();
     this.render(data.items, path);
   }
 
+  deselectAll() {
+    if (this.selectedItem) {
+      this.selectedItem.element.classList.remove('selected');
+
+      // Show size, hide actions
+      const sizeOrActions = this.selectedItem.element.querySelector('.file-size-or-actions');
+      if (sizeOrActions) {
+        const sizeSpan = sizeOrActions.querySelector('.file-size');
+        const actionsSpan = sizeOrActions.querySelector('.file-actions');
+        if (sizeSpan) sizeSpan.style.display = 'inline';
+        if (actionsSpan) actionsSpan.style.display = 'none';
+      }
+
+      this.selectedItem = null;
+    }
+  }
+
+  async trashFile(item, itemElement) {
+    try {
+      const response = await fetch('/api/files/trash', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ path: item.path })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Remove from DOM
+        itemElement.remove();
+        this.selectedItem = null;
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`Failed to trash file: ${error.message}`);
+    }
+  }
+
   render(items, currentPath) {
     this.container.innerHTML = '';
+    this.selectedItem = null;
 
     if (items.length === 0) {
       const emptyMsg = document.createElement('p');
@@ -24,6 +76,7 @@ class FileList {
     for (const item of items) {
       const div = document.createElement('div');
       div.className = 'file-item';
+      div.dataset.path = item.path;
 
       const icon = document.createElement('span');
       icon.className = 'file-icon';
@@ -33,22 +86,81 @@ class FileList {
       name.className = 'file-name';
       name.textContent = item.name;
 
-      const size = document.createElement('span');
-      size.className = 'file-size';
-      size.textContent = item.isDirectory ? '' : this.formatSize(item.size);
+      const sizeOrActions = document.createElement('span');
+      sizeOrActions.className = 'file-size-or-actions';
+
+      if (item.isDirectory) {
+        // Directories show nothing in the right column
+        sizeOrActions.textContent = '';
+      } else {
+        // Files show size by default
+        const sizeSpan = document.createElement('span');
+        sizeSpan.className = 'file-size';
+        sizeSpan.textContent = this.formatSize(item.size);
+        sizeOrActions.appendChild(sizeSpan);
+
+        // Create action buttons (hidden by default)
+        const actionsSpan = document.createElement('span');
+        actionsSpan.className = 'file-actions';
+        actionsSpan.style.display = 'none';
+
+        const openBtn = document.createElement('button');
+        openBtn.className = 'action-btn open-btn';
+        openBtn.textContent = 'open';
+        openBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.open(`/browse/${item.path}`, '_blank');
+        });
+
+        const trashBtn = document.createElement('button');
+        trashBtn.className = 'action-btn trash-btn';
+        trashBtn.textContent = 'trash';
+        trashBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.trashFile(item, div);
+        });
+
+        actionsSpan.appendChild(openBtn);
+        actionsSpan.appendChild(trashBtn);
+        sizeOrActions.appendChild(actionsSpan);
+      }
 
       div.appendChild(icon);
       div.appendChild(name);
-      div.appendChild(size);
+      div.appendChild(sizeOrActions);
 
-      div.addEventListener('click', () => {
+      // Click handler
+      div.addEventListener('click', (e) => {
         if (item.isDirectory) {
+          // Directories navigate on single click
           this.onNavigate(item.path);
         } else {
-          // Open file in new tab
-          window.open(`/browse/${item.path}`, '_blank');
+          // Files: toggle selection
+          if (this.selectedItem && this.selectedItem.element === div) {
+            // Clicking selected item deselects it
+            this.deselectAll();
+          } else {
+            // Select this item
+            this.deselectAll();
+            div.classList.add('selected');
+            this.selectedItem = { item, element: div };
+
+            // Show actions, hide size
+            const sizeSpan = sizeOrActions.querySelector('.file-size');
+            const actionsSpan = sizeOrActions.querySelector('.file-actions');
+            if (sizeSpan) sizeSpan.style.display = 'none';
+            if (actionsSpan) actionsSpan.style.display = 'inline-flex';
+          }
         }
       });
+
+      // Double-click handler for files
+      if (!item.isDirectory) {
+        div.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          window.open(`/browse/${item.path}`, '_blank');
+        });
+      }
 
       this.container.appendChild(div);
     }

@@ -83,4 +83,42 @@ router.get('/tree', async (req, res) => {
   }
 });
 
+// POST /api/files/trash
+// Moves a file to .trash folder at root
+router.post('/trash', express.json(), async (req, res) => {
+  try {
+    const filePath = req.body.path;
+    if (!filePath) {
+      return res.status(400).json({ error: 'File path required' });
+    }
+
+    const sourceFullPath = safePath(filePath);
+
+    // Verify it's a file, not a directory
+    const stats = await fs.stat(sourceFullPath);
+    if (stats.isDirectory()) {
+      return res.status(400).json({ error: 'Cannot trash directories' });
+    }
+
+    // Create .trash directory if it doesn't exist
+    const trashDir = path.join(ROOT_DIR, '.trash');
+    try {
+      await fs.mkdir(trashDir, { recursive: true });
+    } catch (e) {
+      // Directory might already exist
+    }
+
+    // Get just the filename
+    const fileName = path.basename(sourceFullPath);
+    const destFullPath = path.join(trashDir, fileName);
+
+    // Move file to trash (overwrite if exists)
+    await fs.rename(sourceFullPath, destFullPath);
+
+    res.json({ success: true, message: `Moved ${fileName} to trash` });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 module.exports = router;

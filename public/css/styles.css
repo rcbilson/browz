@@ -105,11 +105,18 @@ main {
   border-radius: 4px;
   cursor: pointer;
   border: 1px solid #eee;
+  user-select: none;
 }
 
 .file-item:hover {
   background: #ecf0f1;
   border-color: #3498db;
+}
+
+.file-item.selected {
+  background: #e8f4f8;
+  border-color: #3498db;
+  border-width: 2px;
 }
 
 .file-icon {
@@ -123,10 +130,53 @@ main {
   flex: 1;
 }
 
+.file-size-or-actions {
+  margin-left: 1rem;
+  min-width: 100px;
+  text-align: right;
+}
+
 .file-size {
   color: #7f8c8d;
   font-size: 0.85rem;
-  margin-left: 1rem;
+}
+
+.file-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  padding: 0.3rem 0.8rem;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.open-btn {
+  background: #3498db;
+  color: white;
+}
+
+.open-btn:hover {
+  background: #2980b9;
+}
+
+.trash-btn {
+  background: #e74c3c;
+  color: white;
+}
+
+.trash-btn:hover {
+  background: #c0392b;
 }
 
 .empty-message {
