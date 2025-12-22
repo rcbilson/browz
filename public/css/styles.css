@@ -132,13 +132,24 @@ main {
 
 .file-size-or-actions {
   margin-left: 1rem;
-  min-width: 100px;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.file-date {
+  color: #95a5a6;
+  font-size: 0.85rem;
+  width: 80px;
   text-align: right;
 }
 
 .file-size {
   color: #7f8c8d;
   font-size: 0.85rem;
+  width: 70px;
+  text-align: right;
 }
 
 .file-actions {

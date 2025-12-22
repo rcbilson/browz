@@ -24,11 +24,13 @@ class FileList {
     if (this.selectedItem) {
       this.selectedItem.element.classList.remove('selected');
 
-      // Show size, hide actions
+      // Show date and size, hide actions
       const sizeOrActions = this.selectedItem.element.querySelector('.file-size-or-actions');
       if (sizeOrActions) {
+        const dateSpan = sizeOrActions.querySelector('.file-date');
         const sizeSpan = sizeOrActions.querySelector('.file-size');
         const actionsSpan = sizeOrActions.querySelector('.file-actions');
+        if (dateSpan) dateSpan.style.display = 'inline';
         if (sizeSpan) sizeSpan.style.display = 'inline';
         if (actionsSpan) actionsSpan.style.display = 'none';
       }
@@ -98,7 +100,12 @@ class FileList {
         // Directories show nothing in the right column
         sizeOrActions.textContent = '';
       } else {
-        // Files show size by default
+        // Files show date and size by default
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'file-date';
+        dateSpan.textContent = this.formatDate(item.modified);
+        sizeOrActions.appendChild(dateSpan);
+
         const sizeSpan = document.createElement('span');
         sizeSpan.className = 'file-size';
         sizeSpan.textContent = this.formatSize(item.size);
@@ -150,9 +157,11 @@ class FileList {
             div.classList.add('selected');
             this.selectedItem = { item, element: div };
 
-            // Show actions, hide size
+            // Show actions, hide date and size
+            const dateSpan = sizeOrActions.querySelector('.file-date');
             const sizeSpan = sizeOrActions.querySelector('.file-size');
             const actionsSpan = sizeOrActions.querySelector('.file-actions');
+            if (dateSpan) dateSpan.style.display = 'none';
             if (sizeSpan) sizeSpan.style.display = 'none';
             if (actionsSpan) actionsSpan.style.display = 'inline-flex';
           }
@@ -169,6 +178,14 @@ class FileList {
 
       this.container.appendChild(div);
     }
+  }
+
+  formatDate(dateString) {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   formatSize(bytes) {
