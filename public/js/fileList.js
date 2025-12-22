@@ -4,6 +4,8 @@ class FileList {
     this.onNavigate = onNavigate;
     this.selectedItem = null;
     this.currentPath = '';
+    this.sortField = 'name'; // name, date, size
+    this.sortDirection = 'asc'; // asc, desc
 
     // Click outside to deselect
     document.addEventListener('click', (e) => {
@@ -17,7 +19,8 @@ class FileList {
     this.currentPath = path;
     const response = await fetch(`/api/files/list?path=${encodeURIComponent(path)}`);
     const data = await response.json();
-    this.render(data.items, path);
+    this.currentItems = data.items;
+    this.render();
   }
 
   deselectAll() {
@@ -37,6 +40,45 @@ class FileList {
 
       this.selectedItem = null;
     }
+  }
+
+  setSortField(field) {
+    if (this.sortField === field) {
+      // Toggle direction if clicking same field
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      // New field, default to ascending
+      this.sortField = field;
+      this.sortDirection = 'asc';
+    }
+    this.render();
+  }
+
+  sortItems(items) {
+    // Separate directories and files
+    const dirs = items.filter(item => item.isDirectory);
+    const files = items.filter(item => !item.isDirectory);
+
+    // Sort files based on current sort field
+    files.sort((a, b) => {
+      let comparison = 0;
+
+      if (this.sortField === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (this.sortField === 'date') {
+        comparison = new Date(a.modified) - new Date(b.modified);
+      } else if (this.sortField === 'size') {
+        comparison = a.size - b.size;
+      }
+
+      return this.sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    // Sort directories by name only (always ascending)
+    dirs.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Directories always first
+    return [...dirs, ...files];
   }
 
   encodeFilePath(path) {
@@ -68,17 +110,57 @@ class FileList {
     }
   }
 
-  render(items, currentPath) {
+  render() {
     this.container.innerHTML = '';
     this.selectedItem = null;
 
-    if (items.length === 0) {
+    if (!this.currentItems || this.currentItems.length === 0) {
       const emptyMsg = document.createElement('p');
       emptyMsg.className = 'empty-message';
       emptyMsg.textContent = 'Empty directory';
       this.container.appendChild(emptyMsg);
       return;
     }
+
+    // Add header row
+    const header = document.createElement('div');
+    header.className = 'file-list-header';
+
+    const iconSpacer = document.createElement('span');
+    iconSpacer.className = 'header-icon';
+    header.appendChild(iconSpacer);
+
+    const nameHeader = document.createElement('span');
+    nameHeader.className = 'header-name';
+    nameHeader.textContent = 'Name';
+    if (this.sortField === 'name') {
+      nameHeader.textContent += this.sortDirection === 'asc' ? ' ▲' : ' ▼';
+    }
+    nameHeader.addEventListener('click', () => this.setSortField('name'));
+    header.appendChild(nameHeader);
+
+    const dateHeader = document.createElement('span');
+    dateHeader.className = 'header-date';
+    dateHeader.textContent = 'Date';
+    if (this.sortField === 'date') {
+      dateHeader.textContent += this.sortDirection === 'asc' ? ' ▲' : ' ▼';
+    }
+    dateHeader.addEventListener('click', () => this.setSortField('date'));
+    header.appendChild(dateHeader);
+
+    const sizeHeader = document.createElement('span');
+    sizeHeader.className = 'header-size';
+    sizeHeader.textContent = 'Size';
+    if (this.sortField === 'size') {
+      sizeHeader.textContent += this.sortDirection === 'asc' ? ' ▲' : ' ▼';
+    }
+    sizeHeader.addEventListener('click', () => this.setSortField('size'));
+    header.appendChild(sizeHeader);
+
+    this.container.appendChild(header);
+
+    // Sort items
+    const items = this.sortItems(this.currentItems);
 
     for (const item of items) {
       const div = document.createElement('div');
