@@ -84,7 +84,7 @@ async function transcodeToMp4(inputPath) {
   const escapedInput = inputPath.replace(/'/g, "'\\''");
   const escapedTemp = tempPath.replace(/'/g, "'\\''");
 
-  const cmd = `ffmpeg -i '${escapedInput}' -c:v libx264 -preset medium -crf 23 -c:a aac -movflags +faststart '${escapedTemp}'`;
+  const cmd = `ffmpeg -i '${escapedInput}' -c:v libx264 -preset medium -crf 23 -c:a aac -movflags +faststart -f mp4 '${escapedTemp}'`;
 
   try {
     // Transcode to temporary file
