@@ -3,6 +3,9 @@ FROM node:18-alpine
 # Create app directory
 WORKDIR /app
 
+# Install ffmpeg for video transcoding and thumbnail generation
+RUN apk add --no-cache ffmpeg
+
 # Copy package files
 COPY package*.json ./
 
