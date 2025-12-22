@@ -19,7 +19,24 @@ class FileList {
     this.currentPath = path;
     const response = await fetch(`/api/files/list?path=${encodeURIComponent(path)}`);
     const data = await response.json();
-    this.currentItems = data.items;
+
+    // Fetch tags for all files
+    const itemsWithTags = await Promise.all(data.items.map(async (item) => {
+      if (!item.isDirectory) {
+        try {
+          const tagsResponse = await fetch(`/api/files/tags?path=${encodeURIComponent(item.path)}`);
+          const tagsData = await tagsResponse.json();
+          item.tags = tagsData.tags || [];
+        } catch (e) {
+          item.tags = [];
+        }
+      } else {
+        item.tags = [];
+      }
+      return item;
+    }));
+
+    this.currentItems = itemsWithTags;
     this.render();
   }
 
@@ -171,9 +188,20 @@ class FileList {
       icon.className = 'file-icon';
       icon.textContent = item.isDirectory ? '📁' : '📄';
 
+      const nameContainer = document.createElement('span');
+      nameContainer.className = 'file-name';
+
       const name = document.createElement('span');
-      name.className = 'file-name';
       name.textContent = item.name;
+      nameContainer.appendChild(name);
+
+      // Add tags if file has any
+      if (!item.isDirectory && item.tags && item.tags.length > 0) {
+        const tagsSpan = document.createElement('span');
+        tagsSpan.className = 'file-tags';
+        tagsSpan.textContent = ' ' + item.tags.join(' ');
+        nameContainer.appendChild(tagsSpan);
+      }
 
       const sizeOrActions = document.createElement('span');
       sizeOrActions.className = 'file-size-or-actions';
@@ -206,6 +234,14 @@ class FileList {
           window.open(`/browse/${this.encodeFilePath(item.path)}`, '_blank');
         });
 
+        const tagBtn = document.createElement('button');
+        tagBtn.className = 'action-btn tag-btn';
+        tagBtn.textContent = 'tag';
+        tagBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openTagModal(item);
+        });
+
         const trashBtn = document.createElement('button');
         trashBtn.className = 'action-btn trash-btn';
         trashBtn.textContent = 'trash';
@@ -215,12 +251,13 @@ class FileList {
         });
 
         actionsSpan.appendChild(openBtn);
+        actionsSpan.appendChild(tagBtn);
         actionsSpan.appendChild(trashBtn);
         sizeOrActions.appendChild(actionsSpan);
       }
 
       div.appendChild(icon);
-      div.appendChild(name);
+      div.appendChild(nameContainer);
       div.appendChild(sizeOrActions);
 
       // Click handler
@@ -259,6 +296,108 @@ class FileList {
       }
 
       this.container.appendChild(div);
+    }
+  }
+
+  openTagModal(item) {
+    // Create modal backdrop
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+
+    // Create modal content
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-content';
+
+    const title = document.createElement('h2');
+    title.textContent = `Tags for ${item.name}`;
+    modalContent.appendChild(title);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tag-input';
+    input.placeholder = 'Enter tags separated by spaces';
+    input.value = item.tags ? item.tags.join(' ') : '';
+
+    // Handle Enter key
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const tagsString = input.value.trim();
+        const tags = tagsString ? tagsString.split(/\s+/).filter(t => t) : [];
+        await this.updateTags(item, tags);
+        document.body.removeChild(modal);
+      }
+    });
+
+    modalContent.appendChild(input);
+
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'modal-buttons';
+
+    const updateBtn = document.createElement('button');
+    updateBtn.textContent = 'Update';
+    updateBtn.className = 'modal-btn primary-btn';
+    updateBtn.addEventListener('click', async () => {
+      const tagsString = input.value.trim();
+      const tags = tagsString ? tagsString.split(/\s+/).filter(t => t) : [];
+
+      await this.updateTags(item, tags);
+      document.body.removeChild(modal);
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'modal-btn';
+    cancelBtn.addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+
+    buttonContainer.appendChild(updateBtn);
+    buttonContainer.appendChild(cancelBtn);
+    modalContent.appendChild(buttonContainer);
+
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    // Focus input
+    input.focus();
+
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    });
+
+    // Close on escape key
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        document.body.removeChild(modal);
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
+  }
+
+  async updateTags(item, tags) {
+    try {
+      const response = await fetch('/api/files/tags', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ path: item.path, tags })
+      });
+
+      if (response.ok) {
+        // Reload the current directory to refresh tags
+        await this.load(this.currentPath);
+      } else {
+        const result = await response.json();
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`Failed to update tags: ${error.message}`);
     }
   }
 

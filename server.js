@@ -14,6 +14,9 @@ if (!fs.existsSync(ROOT_DIR)) {
   process.exit(1);
 }
 
+// Parse JSON request bodies
+app.use(express.json());
+
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')));
 

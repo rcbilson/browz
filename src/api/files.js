@@ -83,9 +83,159 @@ router.get('/tree', async (req, res) => {
   }
 });
 
+// Helper: Get all tags for a file
+async function getTagsForFile(filePath) {
+  const tagsDir = path.join(ROOT_DIR, 'tags');
+  const fileName = path.basename(filePath);
+  const tags = [];
+
+  try {
+    const tagDirs = await fs.readdir(tagsDir, { withFileTypes: true });
+
+    for (const tagDir of tagDirs) {
+      if (!tagDir.isDirectory() || tagDir.name.startsWith('.')) continue;
+
+      const linkPath = path.join(tagsDir, tagDir.name, fileName);
+      try {
+        const linkStats = await fs.lstat(linkPath);
+        if (linkStats.isSymbolicLink()) {
+          tags.push(tagDir.name);
+        }
+      } catch (e) {
+        // Link doesn't exist, skip
+      }
+    }
+  } catch (e) {
+    // Tags directory doesn't exist or can't be read
+  }
+
+  return tags;
+}
+
+// Helper: Remove all symlinks to a file
+async function removeAllSymlinks(fileName) {
+  const tagsDir = path.join(ROOT_DIR, 'tags');
+
+  try {
+    const tagDirs = await fs.readdir(tagsDir, { withFileTypes: true });
+
+    for (const tagDir of tagDirs) {
+      if (!tagDir.isDirectory() || tagDir.name.startsWith('.')) continue;
+
+      const linkPath = path.join(tagsDir, tagDir.name, fileName);
+      try {
+        await fs.unlink(linkPath);
+      } catch (e) {
+        // Link doesn't exist or can't be removed
+      }
+    }
+  } catch (e) {
+    // Tags directory doesn't exist
+  }
+}
+
+// GET /api/files/tags?path=some/file
+// Returns tags for a file
+router.get('/tags', async (req, res) => {
+  try {
+    const filePath = req.query.path;
+    if (!filePath) {
+      return res.status(400).json({ error: 'File path required' });
+    }
+
+    const fullPath = safePath(filePath);
+    const tags = await getTagsForFile(fullPath);
+
+    res.json({ tags });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// POST /api/files/tags
+// Updates tags for a file
+router.post('/tags', async (req, res) => {
+  try {
+    const { path: filePath, tags } = req.body;
+    if (!filePath || !Array.isArray(tags)) {
+      return res.status(400).json({ error: 'File path and tags array required' });
+    }
+
+    const fullPath = safePath(filePath);
+    const fileName = path.basename(fullPath);
+
+    // Verify file exists and is not a directory
+    const stats = await fs.stat(fullPath);
+    if (stats.isDirectory()) {
+      return res.status(400).json({ error: 'Cannot tag directories' });
+    }
+
+    // Get current tags
+    const currentTags = await getTagsForFile(fullPath);
+
+    // Determine tags to add and remove
+    const tagsToAdd = tags.filter(tag => !currentTags.includes(tag));
+    const tagsToRemove = currentTags.filter(tag => !tags.includes(tag));
+
+    const tagsDir = path.join(ROOT_DIR, 'tags');
+
+    // Remove tags
+    for (const tag of tagsToRemove) {
+      const linkPath = path.join(tagsDir, tag, fileName);
+      try {
+        await fs.unlink(linkPath);
+      } catch (e) {
+        // Link doesn't exist
+      }
+    }
+
+    // Add tags
+    const errors = [];
+    for (const tag of tagsToAdd) {
+      const tagDir = path.join(tagsDir, tag);
+
+      // Create tag directory if it doesn't exist
+      await fs.mkdir(tagDir, { recursive: true });
+
+      const linkPath = path.join(tagDir, fileName);
+
+      // Check if link already exists
+      try {
+        await fs.lstat(linkPath);
+        // Link exists, skip
+        continue;
+      } catch (e) {
+        // Link doesn't exist, create it
+      }
+
+      // Create relative path from tag directory to file
+      const relativePath = path.relative(tagDir, fullPath);
+
+      try {
+        await fs.symlink(relativePath, linkPath);
+      } catch (e) {
+        errors.push({ tag, error: e.message });
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Some symlinks failed to create',
+        errors,
+        tags
+      });
+    }
+
+    res.json({ success: true, tags });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // POST /api/files/trash
 // Moves a file to .trash folder at root
-router.post('/trash', express.json(), async (req, res) => {
+router.post('/trash', async (req, res) => {
   try {
     const filePath = req.body.path;
     if (!filePath) {
@@ -100,6 +250,11 @@ router.post('/trash', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'Cannot trash directories' });
     }
 
+    const fileName = path.basename(sourceFullPath);
+
+    // Remove all symlinks to this file
+    await removeAllSymlinks(fileName);
+
     // Create .trash directory if it doesn't exist
     const trashDir = path.join(ROOT_DIR, '.trash');
     try {
@@ -108,8 +263,6 @@ router.post('/trash', express.json(), async (req, res) => {
       // Directory might already exist
     }
 
-    // Get just the filename
-    const fileName = path.basename(sourceFullPath);
     const destFullPath = path.join(trashDir, fileName);
 
     // Move file to trash (overwrite if exists)
