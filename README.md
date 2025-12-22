@@ -31,8 +31,26 @@ PORT=3000
 
 ## Usage
 
+### Running locally
+
 ```bash
 npm start
+```
+
+### Running with Docker
+
+```bash
+# Build the image
+docker build -t browz .
+
+# Run the container
+docker run -p 3000:3000 -v /path/to/browse:/data browz
+
+# Or with environment variables
+docker run -p 3000:3000 \
+  -v /path/to/browse:/data \
+  -e ROOT_DIR=/data \
+  browz
 ```
 
 Then open `http://localhost:3000` in your browser.
@@ -61,4 +79,4 @@ Then open `http://localhost:3000` in your browser.
 
 ## License
 
-ISC
+MIT
