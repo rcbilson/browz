@@ -37,6 +37,11 @@ class FileList {
     }
   }
 
+  encodeFilePath(path) {
+    // Encode each path segment to handle special characters like # and spaces
+    return path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+  }
+
   async trashFile(item, itemElement) {
     try {
       const response = await fetch('/api/files/trash', {
@@ -109,7 +114,7 @@ class FileList {
         openBtn.textContent = 'open';
         openBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          window.open(`/browse/${item.path}`, '_blank');
+          window.open(`/browse/${this.encodeFilePath(item.path)}`, '_blank');
         });
 
         const trashBtn = document.createElement('button');
@@ -158,7 +163,7 @@ class FileList {
       if (!item.isDirectory) {
         div.addEventListener('dblclick', (e) => {
           e.stopPropagation();
-          window.open(`/browse/${item.path}`, '_blank');
+          window.open(`/browse/${this.encodeFilePath(item.path)}`, '_blank');
         });
       }
 
