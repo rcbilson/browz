@@ -88,6 +88,7 @@ async function transcodeToMp4(inputPath) {
 
   try {
     // Transcode to temporary file
+    console.log(`running ${cmd}`);
     await execAsync(cmd);
 
     // Rename temp file to final output on success
