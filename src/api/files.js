@@ -212,6 +212,29 @@ async function removeAllSymlinks(fileName) {
   }
 }
 
+// Helper: Delete thumbnail for a file
+async function deleteThumbnail(filePath) {
+  const thumbDir = path.join(ROOT_DIR, '.thumb');
+  const relativePath = path.relative(ROOT_DIR, filePath);
+  const dirName = path.dirname(relativePath);
+  const fileName = path.basename(filePath);
+  const fileNameWithoutExt = path.parse(fileName).name;
+
+  // Common thumbnail extensions
+  const thumbExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+
+  for (const ext of thumbExtensions) {
+    const thumbPath = path.join(thumbDir, dirName, fileNameWithoutExt + ext);
+    try {
+      await fs.unlink(thumbPath);
+      // Thumbnail deleted, no need to try other extensions
+      return;
+    } catch (e) {
+      // Thumbnail doesn't exist with this extension, continue
+    }
+  }
+}
+
 // GET /api/files/tags?path=some/file
 // Returns tags for a file
 router.get('/tags', async (req, res) => {
@@ -332,6 +355,9 @@ router.post('/trash', async (req, res) => {
 
     // Remove all symlinks to this file
     await removeAllSymlinks(fileName);
+
+    // Delete thumbnail if it exists
+    await deleteThumbnail(sourceFullPath);
 
     // Create .trash directory if it doesn't exist
     const trashDir = path.join(ROOT_DIR, '.trash');
