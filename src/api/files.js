@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs').promises;
 const path = require('path');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
 
 const ROOT_DIR = process.env.ROOT_DIR || process.cwd();
 
@@ -12,6 +14,27 @@ function safePath(requestedPath) {
     throw new Error('Access denied: Path traversal attempt');
   }
   return resolved;
+}
+
+// Helper: Generate unique filename to avoid conflicts
+async function getUniqueFileName(dirPath, fileName) {
+  const ext = path.extname(fileName);
+  const base = path.basename(fileName, ext);
+  let counter = 1;
+  let newName = fileName;
+
+  while (true) {
+    const fullPath = path.join(dirPath, newName);
+    try {
+      await fs.access(fullPath);
+      // File exists, try next name
+      newName = `${base}(${counter})${ext}`;
+      counter++;
+    } catch {
+      // File doesn't exist, this name is available
+      return newName;
+    }
+  }
 }
 
 // GET /api/files/list?path=some/dir
@@ -269,6 +292,62 @@ router.post('/trash', async (req, res) => {
     await fs.rename(sourceFullPath, destFullPath);
 
     res.json({ success: true, message: `Moved ${fileName} to trash` });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// POST /api/files/upload
+router.post('/upload', upload.array('files'), async (req, res) => {
+  try {
+    const targetPath = req.body.path || '';
+    const dirPath = safePath(targetPath);
+
+    // Verify directory exists
+    const stats = await fs.stat(dirPath);
+    if (!stats.isDirectory()) {
+      return res.status(400).json({ error: 'Target must be a directory' });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files provided' });
+    }
+
+    const results = [];
+
+    for (const file of req.files) {
+      // Write to temporary file first
+      const tempFileName = `.upload-temp-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+      const tempPath = path.join(dirPath, tempFileName);
+
+      try {
+        // Write data to temp file
+        await fs.writeFile(tempPath, file.buffer);
+
+        // Get unique final filename (handles conflicts)
+        const fileName = await getUniqueFileName(dirPath, file.originalname);
+        const fullPath = path.join(dirPath, fileName);
+
+        // Atomically rename temp file to final name
+        await fs.rename(tempPath, fullPath);
+
+        results.push({
+          originalName: file.originalname,
+          savedName: fileName,
+          size: file.size
+        });
+      } catch (err) {
+        // Clean up temp file if it exists
+        try {
+          await fs.unlink(tempPath);
+        } catch (e) {
+          // Temp file may not exist, ignore
+        }
+        throw err;
+      }
+    }
+
+    res.json({ success: true, files: results });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

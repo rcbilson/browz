@@ -344,3 +344,44 @@ main {
   background: #2980b9;
   border-color: #2980b9;
 }
+
+/* Drag and drop styles */
+.file-list-panel.drag-over {
+  background: #e8f4f8;
+  border: 2px dashed #3498db;
+}
+
+.upload-progress {
+  margin-bottom: 1.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.upload-file-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.upload-file-row:last-child {
+  border-bottom: none;
+}
+
+.upload-file-name {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-file-status {
+  font-size: 0.85rem;
+  color: #95a5a6;
+  margin-left: 1rem;
+  min-width: 150px;
+  text-align: right;
+}

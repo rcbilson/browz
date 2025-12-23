@@ -13,6 +13,8 @@ class FileList {
         this.deselectAll();
       }
     });
+
+    this.setupDragAndDrop();
   }
 
   async load(path = '') {
@@ -398,6 +400,184 @@ class FileList {
       }
     } catch (error) {
       alert(`Failed to update tags: ${error.message}`);
+    }
+  }
+
+  setupDragAndDrop() {
+    const panel = this.container.closest('.file-list-panel');
+
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      panel.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    });
+
+    // Visual feedback
+    ['dragenter', 'dragover'].forEach(eventName => {
+      panel.addEventListener(eventName, () => {
+        panel.classList.add('drag-over');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      panel.addEventListener(eventName, () => {
+        panel.classList.remove('drag-over');
+      });
+    });
+
+    // Handle drop
+    panel.addEventListener('drop', (e) => {
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        this.openUploadModal(files);
+      }
+    });
+  }
+
+  openUploadModal(files) {
+    // Create modal backdrop (following tag modal pattern from line 304)
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-content';
+
+    const title = document.createElement('h2');
+    title.textContent = `Upload ${files.length} file${files.length > 1 ? 's' : ''}`;
+    modalContent.appendChild(title);
+
+    // Progress container
+    const progressContainer = document.createElement('div');
+    progressContainer.className = 'upload-progress';
+
+    // File list
+    files.forEach((file, index) => {
+      const fileRow = document.createElement('div');
+      fileRow.className = 'upload-file-row';
+
+      const fileName = document.createElement('span');
+      fileName.className = 'upload-file-name';
+      fileName.textContent = file.name;
+
+      const fileStatus = document.createElement('span');
+      fileStatus.className = 'upload-file-status';
+      fileStatus.textContent = 'Pending...';
+      fileStatus.dataset.index = index;
+
+      fileRow.appendChild(fileName);
+      fileRow.appendChild(fileStatus);
+      progressContainer.appendChild(fileRow);
+    });
+
+    modalContent.appendChild(progressContainer);
+
+    // Buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'modal-buttons';
+
+    const uploadBtn = document.createElement('button');
+    uploadBtn.textContent = 'Upload';
+    uploadBtn.className = 'modal-btn primary-btn';
+    uploadBtn.addEventListener('click', async () => {
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = 'Uploading...';
+      await this.performUpload(files, progressContainer);
+
+      // Hide upload button and update cancel to close
+      uploadBtn.style.display = 'none';
+      cancelBtn.textContent = 'Close';
+      cancelBtn.className = 'modal-btn primary-btn';
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'modal-btn';
+    cancelBtn.addEventListener('click', () => {
+      // Allow closing if not currently uploading
+      if (cancelBtn.textContent === 'Close' || !uploadBtn.disabled) {
+        document.body.removeChild(modal);
+      }
+    });
+
+    buttonContainer.appendChild(uploadBtn);
+    buttonContainer.appendChild(cancelBtn);
+    modalContent.appendChild(buttonContainer);
+
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal && (cancelBtn.textContent === 'Close' || !uploadBtn.disabled)) {
+        document.body.removeChild(modal);
+      }
+    });
+
+    // Close on escape
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape' && (cancelBtn.textContent === 'Close' || !uploadBtn.disabled)) {
+        document.body.removeChild(modal);
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
+  }
+
+  async performUpload(files, progressContainer) {
+    const formData = new FormData();
+
+    // Add files
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    // Add current path
+    formData.append('path', this.currentPath);
+
+    try {
+      const response = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData
+        // Don't set Content-Type - browser sets it with boundary
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Update status for each file
+        result.files.forEach((fileResult, index) => {
+          const statusSpan = progressContainer.querySelector(`[data-index="${index}"]`);
+          if (statusSpan) {
+            statusSpan.textContent = fileResult.savedName === fileResult.originalName
+              ? 'Uploaded ✓'
+              : `Uploaded as ${fileResult.savedName} ✓`;
+            statusSpan.style.color = '#27ae60';
+          }
+        });
+
+        // Reload file list (pattern from line 394)
+        await this.load(this.currentPath);
+      } else {
+        // Show error
+        files.forEach((_, index) => {
+          const statusSpan = progressContainer.querySelector(`[data-index="${index}"]`);
+          if (statusSpan) {
+            statusSpan.textContent = `Error: ${result.error}`;
+            statusSpan.style.color = '#e74c3c';
+          }
+        });
+      }
+    } catch (error) {
+      // Network error
+      files.forEach((_, index) => {
+        const statusSpan = progressContainer.querySelector(`[data-index="${index}"]`);
+        if (statusSpan) {
+          statusSpan.textContent = `Failed: ${error.message}`;
+          statusSpan.style.color = '#e74c3c';
+        }
+      });
     }
   }
 
