@@ -188,7 +188,17 @@ class FileList {
 
       const icon = document.createElement('span');
       icon.className = 'file-icon';
-      icon.textContent = item.isDirectory ? '📁' : '📄';
+
+      // Display thumbnail if available, otherwise show default icon
+      if (item.thumbnailPath && !item.isDirectory) {
+        const img = document.createElement('img');
+        img.src = `/browse/${this.encodeFilePath(item.thumbnailPath)}`;
+        img.className = 'file-thumbnail';
+        img.alt = item.name;
+        icon.appendChild(img);
+      } else {
+        icon.textContent = item.isDirectory ? '📁' : '📄';
+      }
 
       const nameContainer = document.createElement('span');
       nameContainer.className = 'file-name';

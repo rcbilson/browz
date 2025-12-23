@@ -37,6 +37,31 @@ async function getUniqueFileName(dirPath, fileName) {
   }
 }
 
+// Helper: Check if a thumbnail exists for a file
+async function getThumbnailPath(filePath) {
+  const thumbDir = path.join(ROOT_DIR, '.thumb');
+  const relativePath = path.relative(ROOT_DIR, filePath);
+  const dirName = path.dirname(relativePath);
+  const fileName = path.basename(filePath);
+  const fileNameWithoutExt = path.parse(fileName).name;
+
+  // Common thumbnail extensions
+  const thumbExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+
+  for (const ext of thumbExtensions) {
+    const thumbPath = path.join(thumbDir, dirName, fileNameWithoutExt + ext);
+    try {
+      await fs.access(thumbPath);
+      // Thumbnail exists, return relative path from ROOT_DIR
+      return path.relative(ROOT_DIR, thumbPath);
+    } catch (e) {
+      // Thumbnail doesn't exist with this extension
+    }
+  }
+
+  return null;
+}
+
 // GET /api/files/list?path=some/dir
 // Returns contents of a directory
 router.get('/list', async (req, res) => {
@@ -53,12 +78,40 @@ router.get('/list', async (req, res) => {
       const fullPath = path.join(dirPath, entry.name);
       const relativePath = path.relative(ROOT_DIR, fullPath);
       let stats = null;
+      let isSymlink = false;
+      let linkTarget = null;
+      let thumbnailPath = null;
 
       try {
+        // Use lstat to detect symlinks
+        const lStats = await fs.lstat(fullPath);
+        isSymlink = lStats.isSymbolicLink();
+
+        // Get actual stats (follows symlinks)
         stats = await fs.stat(fullPath);
+
+        // If it's a symlink, resolve the target
+        if (isSymlink) {
+          linkTarget = await fs.readlink(fullPath);
+          // If target is relative, resolve it relative to the symlink's directory
+          if (!path.isAbsolute(linkTarget)) {
+            linkTarget = path.resolve(path.dirname(fullPath), linkTarget);
+          }
+        }
       } catch (e) {
         // Skip files we can't stat
         return null;
+      }
+
+      // Check for thumbnail
+      if (!entry.isDirectory()) {
+        if (isSymlink && linkTarget) {
+          // For symlinks, check thumbnail for the link target
+          thumbnailPath = await getThumbnailPath(linkTarget);
+        } else {
+          // For regular files, check thumbnail for the file itself
+          thumbnailPath = await getThumbnailPath(fullPath);
+        }
       }
 
       return {
@@ -66,7 +119,9 @@ router.get('/list', async (req, res) => {
         path: relativePath,
         isDirectory: entry.isDirectory(),
         size: stats.size,
-        modified: stats.mtime
+        modified: stats.mtime,
+        isSymlink,
+        thumbnailPath
       };
     }));
 
