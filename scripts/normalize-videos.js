@@ -74,6 +74,14 @@ async function transcodeToMp4(inputPath) {
     // File doesn't exist, proceed with transcoding
   }
 
+  // Check if temp file already exists
+  try {
+    await fs.access(tempPath);
+    return null; // Skip - some other instance running
+  } catch {
+    // File doesn't exist, proceed with transcoding
+  }
+
   // Clean up any leftover temp file from previous interrupted run
   try {
     await fs.unlink(tempPath);
