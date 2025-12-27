@@ -9,31 +9,37 @@ class CastManager {
     this.resolveInit = null;
     this.rejectInit = null;
 
-    // Set up Cast API callback before SDK loads
-    window['__onGCastApiAvailable'] = (isAvailable) => {
-      console.log('Cast API availability callback fired:', isAvailable);
-      if (isAvailable) {
-        try {
-          this.initializeCastApi();
-          if (this.resolveInit) {
-            this.resolveInit();
-          }
-        } catch (error) {
-          console.error('Error initializing Cast API:', error);
-          this.hideSelector();
-          if (this.rejectInit) {
-            this.rejectInit(error);
-          }
+    console.log('CastManager created');
+
+    // Check if Cast availability was already determined
+    if (window.castAvailable !== null) {
+      console.log('Cast availability already known:', window.castAvailable);
+      this.onCastAvailable(window.castAvailable);
+    }
+  }
+
+  onCastAvailable(isAvailable) {
+    console.log('CastManager.onCastAvailable called:', isAvailable);
+    if (isAvailable) {
+      try {
+        this.initializeCastApi();
+        if (this.resolveInit) {
+          this.resolveInit();
         }
-      } else {
-        console.warn('Cast API reported as not available');
+      } catch (error) {
+        console.error('Error initializing Cast API:', error);
         this.hideSelector();
         if (this.rejectInit) {
-          this.rejectInit(new Error('Cast API not available'));
+          this.rejectInit(error);
         }
       }
-    };
-    console.log('CastManager created, waiting for Cast SDK...');
+    } else {
+      console.log('Cast not available on this device - hiding selector');
+      this.hideSelector();
+      if (this.rejectInit) {
+        this.rejectInit(new Error('Cast API not available on this device'));
+      }
+    }
   }
 
   async initialize() {

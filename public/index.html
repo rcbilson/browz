@@ -6,9 +6,15 @@
   <title>Browz - File Browser</title>
   <link rel="stylesheet" href="/css/styles.css">
   <script>
-    // Fallback if Cast SDK doesn't call the callback
-    window.__onGCastApiAvailable = window.__onGCastApiAvailable || function(isAvailable) {
-      console.log('Default Cast callback - SDK loaded but may not be available:', isAvailable);
+    // Set up Cast availability tracking before SDK loads
+    window.castAvailable = null;
+    window.__onGCastApiAvailable = function(isAvailable) {
+      console.log('Cast API availability:', isAvailable);
+      window.castAvailable = isAvailable;
+      // If CastManager already exists, notify it
+      if (window.castManager) {
+        window.castManager.onCastAvailable(isAvailable);
+      }
     };
   </script>
   <script
