@@ -6,49 +6,60 @@ class CastManager {
     this.castContext = null;
     this.currentSession = null;
     this.initialized = false;
-    this.initPromise = null;
+    this.resolveInit = null;
+    this.rejectInit = null;
 
     // Set up Cast API callback before SDK loads
     window['__onGCastApiAvailable'] = (isAvailable) => {
+      console.log('Cast API availability callback fired:', isAvailable);
       if (isAvailable) {
-        this.initializeCastApi();
+        try {
+          this.initializeCastApi();
+          if (this.resolveInit) {
+            this.resolveInit();
+          }
+        } catch (error) {
+          console.error('Error initializing Cast API:', error);
+          this.hideSelector();
+          if (this.rejectInit) {
+            this.rejectInit(error);
+          }
+        }
       } else {
-        console.warn('Cast API not available');
+        console.warn('Cast API reported as not available');
         this.hideSelector();
+        if (this.rejectInit) {
+          this.rejectInit(new Error('Cast API not available'));
+        }
       }
     };
+    console.log('CastManager created, waiting for Cast SDK...');
   }
 
   async initialize() {
-    if (this.initPromise) {
-      return this.initPromise;
+    // Return existing promise if already initializing
+    if (this.initialized) {
+      console.log('Cast already initialized');
+      return Promise.resolve();
     }
 
-    this.initPromise = new Promise((resolve, reject) => {
-      // Check if Cast API already loaded
-      if (typeof chrome !== 'undefined' && chrome.cast && chrome.cast.isAvailable) {
-        this.initializeCastApi();
-        resolve();
-      } else {
-        // Wait for Cast API to load (up to 10 seconds)
-        let attempts = 0;
-        const checkInterval = setInterval(() => {
-          attempts++;
-          if (typeof chrome !== 'undefined' && chrome.cast && chrome.cast.isAvailable) {
-            clearInterval(checkInterval);
-            this.initializeCastApi();
-            resolve();
-          } else if (attempts > 100) {
-            clearInterval(checkInterval);
-            console.warn('Cast API timeout - it may not be available');
-            this.hideSelector();
-            reject(new Error('Cast API not available'));
-          }
-        }, 100);
-      }
-    });
+    console.log('Starting Cast initialization...');
+    return new Promise((resolve, reject) => {
+      this.resolveInit = resolve;
+      this.rejectInit = reject;
 
-    return this.initPromise;
+      // Set a timeout in case the callback never fires
+      setTimeout(() => {
+        if (!this.initialized) {
+          console.warn('Cast API initialization timeout after 5 seconds');
+          console.log('Browser:', navigator.userAgent);
+          console.log('Chrome object exists:', typeof chrome !== 'undefined');
+          console.log('Cast object exists:', typeof chrome !== 'undefined' && typeof chrome.cast !== 'undefined');
+          this.hideSelector();
+          reject(new Error('Cast API initialization timeout'));
+        }
+      }, 5000);
+    });
   }
 
   initializeCastApi() {

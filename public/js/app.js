@@ -90,10 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
   updateBreadcrumb(initialPath);
   currentPath = initialPath;
 
-  // Initialize Cast Manager
+  // Initialize Cast Manager (non-blocking)
   if (window.castManager) {
     window.castManager.initialize().catch(error => {
-      console.error('Failed to initialize Cast:', error);
+      console.warn('Cast not available:', error.message);
+      // Cast will be hidden automatically on failure
     });
   }
 });
