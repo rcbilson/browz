@@ -49,18 +49,27 @@ class CastManager {
       return Promise.resolve();
     }
 
-    console.log('Starting Cast initialization...');
+    // If we already know Cast is not available, reject immediately
+    if (window.castAvailable === false) {
+      console.log('Cast known to be unavailable - skipping initialization');
+      return Promise.reject(new Error('Cast API not available on this device'));
+    }
+
+    // If Cast is already available, resolve immediately
+    if (window.castAvailable === true && this.initialized) {
+      console.log('Cast already available and initialized');
+      return Promise.resolve();
+    }
+
+    console.log('Waiting for Cast SDK availability...');
     return new Promise((resolve, reject) => {
       this.resolveInit = resolve;
       this.rejectInit = reject;
 
       // Set a timeout in case the callback never fires
       setTimeout(() => {
-        if (!this.initialized) {
-          console.warn('Cast API initialization timeout after 5 seconds');
-          console.log('Browser:', navigator.userAgent);
-          console.log('Chrome object exists:', typeof chrome !== 'undefined');
-          console.log('Cast object exists:', typeof chrome !== 'undefined' && typeof chrome.cast !== 'undefined');
+        if (!this.initialized && window.castAvailable === null) {
+          console.warn('Cast API initialization timeout - SDK may not have loaded');
           this.hideSelector();
           reject(new Error('Cast API initialization timeout'));
         }
