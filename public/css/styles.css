@@ -22,9 +22,16 @@ header {
   padding: 1rem;
 }
 
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
 header h1 {
   font-size: 1.5rem;
-  margin-bottom: 0.5rem;
+  margin: 0;
 }
 
 .breadcrumb {
@@ -45,13 +52,90 @@ main {
   display: flex;
   flex: 1;
   overflow: hidden;
+  position: relative;
+}
+
+.tree-toggle-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+}
+
+.tree-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.tree-toggle-btn.hidden {
+  visibility: hidden;
 }
 
 .tree-panel {
-  width: 280px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
   background: #fff;
   border-right: 1px solid #ddd;
   overflow-y: auto;
+  padding: 0;
+  z-index: 1000;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+}
+
+.tree-panel.visible {
+  transform: translateX(0);
+}
+
+.tree-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #2c3e50;
+  color: white;
+  border-bottom: 1px solid #ddd;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tree-panel-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.tree-close-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.tree-close-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.tree {
   padding: 1rem;
 }
 

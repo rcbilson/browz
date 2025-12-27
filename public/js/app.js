@@ -2,8 +2,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const treeContainer = document.getElementById('tree');
   const fileListContainer = document.getElementById('file-list');
   const breadcrumbContainer = document.getElementById('breadcrumb');
+  const treePanel = document.getElementById('tree-panel');
+  const treeToggleBtn = document.getElementById('tree-toggle-btn');
+  const treeCloseBtn = document.getElementById('tree-close-btn');
 
   let currentPath = '';
+
+  // Tree panel visibility
+  function showTreePanel() {
+    treePanel.classList.add('visible');
+    treeToggleBtn.classList.add('hidden');
+  }
+
+  function hideTreePanel() {
+    treePanel.classList.remove('visible');
+    treeToggleBtn.classList.remove('hidden');
+  }
+
+  treeToggleBtn.addEventListener('click', showTreePanel);
+  treeCloseBtn.addEventListener('click', hideTreePanel);
 
   // Update breadcrumb navigation
   function updateBreadcrumb(path) {
@@ -36,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize tree view
   const tree = new TreeView(treeContainer, (path) => {
     navigateTo(path);
+    hideTreePanel(); // Auto-hide when directory is selected
   });
 
   // Initialize file list
