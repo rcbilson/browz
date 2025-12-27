@@ -53,7 +53,7 @@ async function getVideoDuration(videoPath) {
   const cmd = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 '${escapedPath}'`;
 
   try {
-    const { stdout } = await execAsync(cmd);
+    const { stdout } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 }); // 10MB buffer
     return parseFloat(stdout.trim());
   } catch (error) {
     throw new Error(`Failed to get video duration: ${error.message}`);
@@ -97,7 +97,7 @@ async function transcodeToMp4(inputPath) {
   try {
     // Transcode to temporary file
     console.log(`running ${cmd}`);
-    await execAsync(cmd);
+    await execAsync(cmd, { maxBuffer: 50 * 1024 * 1024 }); // 50MB buffer
 
     // Rename temp file to final output on success
     await fs.rename(tempPath, outputPath);
@@ -144,7 +144,7 @@ async function generateThumbnail(videoPath) {
 
     const cmd = `ffmpeg -ss ${middleTime} -i '${escapedInput}' -vf scale=160:-1 -vframes 1 -q:v 2 '${escapedOutput}'`;
 
-    await execAsync(cmd);
+    await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 }); // 10MB buffer
     return thumbPath;
   } catch (error) {
     throw new Error(`Failed to generate thumbnail: ${error.message}`);
