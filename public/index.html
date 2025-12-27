@@ -5,7 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Browz - File Browser</title>
   <link rel="stylesheet" href="/css/styles.css">
-  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+  <script>
+    // Fallback if Cast SDK doesn't call the callback
+    window.__onGCastApiAvailable = window.__onGCastApiAvailable || function(isAvailable) {
+      console.log('Default Cast callback - SDK loaded but may not be available:', isAvailable);
+    };
+  </script>
+  <script
+    src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"
+    onload="console.log('Cast SDK script loaded successfully')"
+    onerror="console.error('Failed to load Cast SDK script from CDN')">
+  </script>
 </head>
 <body>
   <div class="container">
