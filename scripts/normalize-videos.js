@@ -11,7 +11,7 @@ const execAsync = promisify(exec);
 const ROOT_DIR = process.env.ROOT_DIR || process.cwd();
 const THUMB_DIR = path.join(ROOT_DIR, '.thumb');
 const EXCLUDED_DIRS = ['tags', '.trash', '.thumb'];
-const SOURCE_EXTS = ['.mov', '.wmv', '.flv'];
+const SOURCE_EXTS = ['.mov', '.wmv', '.flv', '.avi', '.mpg'];
 const MP4_EXT = '.mp4';
 const THUMB_EXT = '.jpg';
 
