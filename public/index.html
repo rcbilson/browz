@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Browz - File Browser</title>
   <link rel="stylesheet" href="/css/styles.css">
+  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </head>
 <body>
   <div class="container">
@@ -14,6 +15,19 @@
           <span>📁</span>
         </button>
         <h1>Browz</h1>
+        <div class="cast-selector-container">
+          <button class="cast-selector-btn" id="cast-selector-btn" title="Select Chromecast device">
+            <span class="cast-icon">📡</span>
+            <span class="cast-device-name" id="cast-device-name">No device</span>
+            <span class="cast-dropdown-arrow">▼</span>
+          </button>
+          <div class="cast-dropdown" id="cast-dropdown" style="display: none;">
+            <div class="cast-dropdown-header">Chromecast Devices</div>
+            <div class="cast-device-list" id="cast-device-list">
+              <div class="cast-scanning">Scanning...</div>
+            </div>
+          </div>
+        </div>
       </div>
       <nav class="breadcrumb" id="breadcrumb"></nav>
     </header>
@@ -33,6 +47,7 @@
 
   <script src="/js/tree.js"></script>
   <script src="/js/fileList.js"></script>
+  <script src="/js/cast.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

@@ -7,6 +7,10 @@ class FileList {
     this.sortField = 'name'; // name, date, size
     this.sortDirection = 'asc'; // asc, desc
 
+    // Media file extensions
+    this.videoExtensions = ['mp4', 'webm', 'ogv', 'mov', 'avi', 'mkv', 'm4v', 'wmv'];
+    this.audioExtensions = ['mp3', 'ogg', 'wav', 'm4a', 'aac', 'flac'];
+
     // Click outside to deselect
     document.addEventListener('click', (e) => {
       if (!this.container.contains(e.target)) {
@@ -246,6 +250,18 @@ class FileList {
           window.open(`/browse/${this.encodeFilePath(item.path)}`, '_blank');
         });
 
+        // Create Cast button for media files
+        let castBtn = null;
+        if (this.isMediaFile(item.name)) {
+          castBtn = document.createElement('button');
+          castBtn.className = 'action-btn cast-btn';
+          castBtn.textContent = 'cast';
+          castBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await this.castFile(item);
+          });
+        }
+
         const tagBtn = document.createElement('button');
         tagBtn.className = 'action-btn tag-btn';
         tagBtn.textContent = 'tag';
@@ -263,6 +279,9 @@ class FileList {
         });
 
         actionsSpan.appendChild(openBtn);
+        if (castBtn) {
+          actionsSpan.appendChild(castBtn);
+        }
         actionsSpan.appendChild(tagBtn);
         actionsSpan.appendChild(trashBtn);
         sizeOrActions.appendChild(actionsSpan);
@@ -604,5 +623,68 @@ class FileList {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+  }
+
+  // Check if file is a media file (video or audio)
+  isMediaFile(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    return this.videoExtensions.includes(ext) || this.audioExtensions.includes(ext);
+  }
+
+  // Get MIME type for media file
+  getMimeType(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const mimeMap = {
+      // Video
+      'mp4': 'video/mp4',
+      'webm': 'video/webm',
+      'ogv': 'video/ogg',
+      'mov': 'video/quicktime',
+      'avi': 'video/x-msvideo',
+      'mkv': 'video/x-matroska',
+      'm4v': 'video/mp4',
+      'wmv': 'video/x-ms-wmv',
+      // Audio
+      'mp3': 'audio/mpeg',
+      'ogg': 'audio/ogg',
+      'wav': 'audio/wav',
+      'm4a': 'audio/mp4',
+      'aac': 'audio/aac',
+      'flac': 'audio/flac'
+    };
+    return mimeMap[ext] || 'application/octet-stream';
+  }
+
+  // Cast file to Chromecast
+  async castFile(item) {
+    // Check if Cast Manager is available
+    if (!window.castManager) {
+      alert('Cast functionality not available');
+      return;
+    }
+
+    // Check if device is selected
+    if (!window.castManager.selectedDevice) {
+      // Fallback to opening in browser
+      const openInBrowser = confirm(
+        'No Chromecast device selected. Open in browser instead?'
+      );
+      if (openInBrowser) {
+        window.open(`/browse/${this.encodeFilePath(item.path)}`, '_blank');
+      }
+      return;
+    }
+
+    // Construct full URL for media file
+    const mediaUrl = `${window.location.origin}/browse/${this.encodeFilePath(item.path)}`;
+    const mimeType = this.getMimeType(item.name);
+
+    try {
+      await window.castManager.castMedia(mediaUrl, mimeType, item.name);
+      // Optionally show notification
+      console.log(`Casting ${item.name} to ${window.castManager.selectedDevice}`);
+    } catch (error) {
+      alert(`Failed to cast: ${error.message}`);
+    }
   }
 }

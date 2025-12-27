@@ -89,4 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
   fileList.load(initialPath);
   updateBreadcrumb(initialPath);
   currentPath = initialPath;
+
+  // Initialize Cast Manager
+  if (window.castManager) {
+    window.castManager.initialize().catch(error => {
+      console.error('Failed to initialize Cast:', error);
+    });
+  }
 });
